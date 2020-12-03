@@ -18,7 +18,7 @@ public abstract class Day {
 
     abstract String doPart2(List<String> input);
 
-    public void run(String filename) throws IOException, URISyntaxException {
+    public void main(String filename) throws IOException, URISyntaxException {
         List<String> input = readInput(filename);
 
         // part 1
