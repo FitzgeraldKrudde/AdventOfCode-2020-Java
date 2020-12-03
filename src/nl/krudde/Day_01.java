@@ -18,8 +18,8 @@ public class Day_01 extends Day {
                         .map(long2 -> new Pair(long1, long2))
                 )
                 .filter(pair -> pair.long1 + pair.long2 == 2020)
-                .findFirst()
-                .get();
+                .findAny()
+                .orElseThrow(() -> new RuntimeException("no solution .. :-("));
         long result = pairResult.long1 * pairResult.long2;
         return String.valueOf(result);
     }
@@ -41,8 +41,8 @@ public class Day_01 extends Day {
                     return true;
                 })
                 .filter(triple -> triple.long1 + triple.long2 + triple.long3 == 2020)
-                .findFirst()
-                .get();
+                .findAny()
+                .orElseThrow(() -> new RuntimeException("no solution .. :-("));
         System.out.println("#multiplications = " + multiplications);
         long result = tripleResult.long1 * tripleResult.long2 * tripleResult.long3;
 
@@ -50,16 +50,14 @@ public class Day_01 extends Day {
     }
 
     private List<Long> parseInput(List<String> inputRaw) {
-        List<Long> input = inputRaw.stream()
+        return inputRaw.stream()
                 .map(Long::valueOf)
                 .collect(toList());
-
-        return input;
     }
 
     // @formatter:off
-    record Pair(long long1, long long2) {};
-    record Triple(long long1, long long2, long long3) {};
+    record Pair(long long1, long long2) {}
+    record Triple(long long1, long long2, long long3) {}
 
 
 
