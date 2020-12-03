@@ -68,7 +68,7 @@ public class Day_03 extends Day {
         // create instance
         Object day = Class.forName(fullClassName).getDeclaredConstructor().newInstance();
         // find run method
-        Method runMethod = day.getClass().getMethod("run", String.class);
+        Method runMethod = day.getClass().getMethod("main", String.class);
         // invoke run method for our instance
         runMethod.invoke(day, filename);
     }
