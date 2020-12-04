@@ -75,15 +75,13 @@ public class Day_04 extends Day {
                 return false;
             }
 
-            if (!isValidBirthYear()) return false;
-            if (!isValidIssueYear()) return false;
-            if (!isValidExpiryYear()) return false;
-            if (!isValidHeight()) return false;
-            if (!isValidHairColor()) return false;
-            if (!isValidEyeColor()) return false;
-            if (!isValidPassportId()) return false;
-
-            return true;
+            return (isValidBirthYear() &&
+                    isValidIssueYear() &&
+                    isValidExpiryYear() &&
+                    isValidHeight() &&
+                    isValidHairColor() &&
+                    isValidEyeColor() &&
+                    isValidPassportId());
         }
 
         private boolean isValidPassportId() {
