@@ -2,13 +2,12 @@ package nl.krudde;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Objects;
 
 import static java.util.stream.Collectors.toList;
 
@@ -18,7 +17,7 @@ public abstract class Day {
 
     abstract String doPart2(List<String> input);
 
-    public void main(String filename) throws IOException, URISyntaxException {
+    final public void main(String filename) throws IOException, URISyntaxException {
         List<String> input = readInput(filename);
 
         // part 1
@@ -42,8 +41,11 @@ public abstract class Day {
         System.out.println("reading file: " + filename);
 
         // get the input lines
-        Path path = Paths.get(Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).toURI());
-        List<String> input = Files.lines(path).collect(toList());
+        URL url = getClass().getClassLoader().getResource(filename);
+        if (url == null) {
+            throw new RuntimeException("cannot read input file: " + filename);
+        }
+        List<String> input = Files.lines(Paths.get(url.toURI())).collect(toList());
 
         System.out.printf("read file: %s (#lines: %d)%n", filename, input.size());
 
