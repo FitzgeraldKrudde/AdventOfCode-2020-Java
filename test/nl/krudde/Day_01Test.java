@@ -9,16 +9,14 @@ class Day_01Test {
     @Test
     void doPart1() throws Exception {
         Day day = new Day_01();
-        String result = day.doPart1(day.readInput("day_01.txt"));
 
-        assertThat(result).isEqualTo("514579");
+        assertThat(day.doPart1(day.readInput("day_01.txt"))).isEqualTo("514579");
     }
 
     @Test
     void doPart2() throws Exception {
         Day day = new Day_01();
-        String result = day.doPart2(day.readInput("day_01.txt"));
 
-        assertThat(result).isEqualTo("241861950");
+        assertThat(day.doPart2(day.readInput("day_01.txt"))).isEqualTo("241861950");
     }
 }
