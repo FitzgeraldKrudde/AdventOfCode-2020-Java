@@ -27,22 +27,20 @@ public class Day_07 extends Day {
     }
 
     private List<Rule> parseInput(List<String> inputRaw) {
-        List<Rule> input = inputRaw.stream()
-                .flatMap(line -> readRule(line).stream())
+        return inputRaw.stream()
+                .flatMap(line -> readRules(line).stream())
                 .collect(toList());
-
-        return input;
     }
 
-    private List<Rule> readRule(String line) {
+    private List<Rule> readRules(String line) {
         List<Rule> rules = new ArrayList<>();
 
-        String[] fields = line.split(" ");
+        String[] fields = line.split("\\s+");
         String colorOutside = fields[0] + " " + fields[1];
         if (!"no".equals(fields[4])) {
             for (int i = 0; i < fields.length / 4 - 1; i++) {
-                String colorInside = fields[5 + i * 4] + " " + fields[6 + i * 4];
-                int count = Integer.parseInt(fields[4 + i * 4]);
+                int count = Integer.parseInt(fields[i * 4 + 4]);
+                String colorInside = fields[i * 4 + 5] + " " + fields[i * 4 + 6];
                 rules.add(new Rule(colorOutside, colorInside, count));
             }
         }
