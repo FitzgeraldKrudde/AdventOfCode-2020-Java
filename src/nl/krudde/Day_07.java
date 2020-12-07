@@ -12,7 +12,7 @@ public class Day_07 extends Day {
     public String doPart1(List<String> inputRaw) {
         List<Rule> rules = parseInput(inputRaw);
         LuggageChecker luggageChecker = new LuggageChecker(rules);
-        long result = luggageChecker.findNrColorsOutsideBag("shiny gold").size();
+        long result = luggageChecker.findColorsOutsideBag("shiny gold").size();
 
         return String.valueOf(result);
     }
@@ -51,10 +51,10 @@ public class Day_07 extends Day {
     }
 
     record LuggageChecker(List<Rule> rules) {
-        List<String> findNrColorsOutsideBag(String color) {
+        List<String> findColorsOutsideBag(String color) {
             return rules.stream()
                     .filter(rule -> rule.colorInside.equals(color))
-                    .flatMap(rule -> Stream.concat(Stream.of(rule.colorOutside), findNrColorsOutsideBag(rule.colorOutside).stream()))
+                    .flatMap(rule -> Stream.concat(Stream.of(rule.colorOutside), findColorsOutsideBag(rule.colorOutside).stream()))
                     .distinct()
                     .collect(toList());
         }
