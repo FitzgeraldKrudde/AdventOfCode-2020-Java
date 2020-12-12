@@ -26,7 +26,7 @@ public class Day_12 extends Day {
     @Override
     public String doPart2(List<String> inputRaw) {
         final List<ShipNavigationWithWaypoint> pointList = new ArrayList<>();
-        pointList.add(new ShipNavigationWithWaypoint(new Point(0, 0), new Point(10, 1), Direction.E));
+        pointList.add(new ShipNavigationWithWaypoint(new Point(0, 0), new Point(10, 1)));
 
         inputRaw.forEach(line -> pointList.add(pointList.get(pointList.size() - 1).move(line)));
 
@@ -86,15 +86,15 @@ public class Day_12 extends Day {
         }
     }
 
-    record ShipNavigationWithWaypoint(Point shipPoint, Point wayPoint, Direction currentDirection) {
+    record ShipNavigationWithWaypoint(Point shipPoint, Point wayPoint) {
 
         public ShipNavigationWithWaypoint move(String navigation) {
             char direction = navigation.charAt(0);
             int value = Integer.parseInt(navigation.substring(1));
             return switch (direction) {
-                case 'N', 'E', 'S', 'W' -> new ShipNavigationWithWaypoint(shipPoint, wayPoint.move(Direction.of(direction), value), currentDirection);
-                case 'F' -> new ShipNavigationWithWaypoint(shipPoint.move(wayPoint, value), wayPoint, currentDirection);
-                case 'R', 'L' -> new ShipNavigationWithWaypoint(shipPoint, waypointTurn(wayPoint, direction, value), currentDirection.turn(direction, value));
+                case 'N', 'E', 'S', 'W' -> new ShipNavigationWithWaypoint(shipPoint, wayPoint.move(Direction.of(direction), value));
+                case 'F' -> new ShipNavigationWithWaypoint(shipPoint.move(wayPoint, value), wayPoint);
+                case 'R', 'L' -> new ShipNavigationWithWaypoint(shipPoint, waypointTurn(wayPoint, direction, value));
                 default -> throw new IllegalStateException("invalid direction");
             };
         }
