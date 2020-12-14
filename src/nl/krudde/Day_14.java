@@ -3,8 +3,6 @@ package nl.krudde;
 import java.util.HashMap;
 import java.util.List;
 
-import static java.util.stream.Collectors.toList;
-
 public class Day_14 extends Day {
 
     @Override
@@ -23,14 +21,6 @@ public class Day_14 extends Day {
                 .forEach(line -> seaPortComputerV2.processInput(line));
 
         return String.valueOf(seaPortComputerV2.getSumValues());
-    }
-
-    private List<Object> parseInput(List<String> inputRaw) {
-        List<Object> input = inputRaw.stream()
-                .map(Long::valueOf)
-                .collect(toList());
-
-        return input;
     }
 
     static class SeaPortComputer {
@@ -65,7 +55,7 @@ public class Day_14 extends Day {
         }
     }
 
-    static class SeaPortComputerV2 extends SeaPortComputer{
+    static class SeaPortComputerV2 extends SeaPortComputer {
         @Override
         public void processInput(String line) {
             String[] fields = line.split(" = ");
@@ -84,9 +74,9 @@ public class Day_14 extends Day {
                 // prefix with enough zeros
                 sbAddress.insert(0, "0".repeat(36 - sbAddress.length()));
                 int i = mask.indexOf('X');
-                while (i>=0) {
+                while (i >= 0) {
                     sbAddress.setCharAt(i, 'X');
-                    i = mask.indexOf('X',i+1);
+                    i = mask.indexOf('X', i + 1);
                 }
 
                 doFloating(sbAddress.toString(), value);
