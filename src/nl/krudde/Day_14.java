@@ -11,7 +11,7 @@ public class Day_14 extends Day {
         inputRaw.stream()
                 .forEach(line -> seaPortComputer.processInput(line));
 
-        return String.valueOf(seaPortComputer.getSumValues());
+        return String.valueOf(seaPortComputer.getSumMemoryValues());
     }
 
     @Override
@@ -20,7 +20,7 @@ public class Day_14 extends Day {
         inputRaw.stream()
                 .forEach(line -> seaPortComputerV2.processInput(line));
 
-        return String.valueOf(seaPortComputerV2.getSumValues());
+        return String.valueOf(seaPortComputerV2.getSumMemoryValues());
     }
 
     static class SeaPortComputer {
@@ -48,7 +48,7 @@ public class Day_14 extends Day {
             }
         }
 
-        long getSumValues() {
+        long getSumMemoryValues() {
             return memory.values().stream()
                     .mapToLong(l -> l)
                     .sum();
