@@ -12,7 +12,7 @@ public class Day_xx extends Day {
 
     @Override
     public String doPart1(List<String> inputRaw) {
-//        List<Long> input = parseInput(inputRaw);
+        List<Long> input = parseInput(inputRaw);
 
 
         long result = 0;
@@ -22,7 +22,7 @@ public class Day_xx extends Day {
 
     @Override
     public String doPart2(List<String> inputRaw) {
-//        List<Long> input = parseInput(inputRaw);
+        List<Long> input = parseInput(inputRaw);
 
 
         long result = 0;
@@ -31,11 +31,9 @@ public class Day_xx extends Day {
     }
 
     private List<Long> parseInput(List<String> inputRaw) {
-        List<Long> input = inputRaw.stream()
+        return inputRaw.stream()
                 .map(Long::valueOf)
                 .collect(toList());
-
-        return input;
     }
 
     // @formatter:off
