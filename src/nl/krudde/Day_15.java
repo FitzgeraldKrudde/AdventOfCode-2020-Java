@@ -28,7 +28,7 @@ public class Day_15 extends Day {
     }
 
     private long spokenNumberAtTurn(List<Integer> startingNumbers, int nrTurns) {
-        HashMap<Integer, Integer> previousSpokenHashMap = new HashMap<>(30000000);
+        HashMap<Integer, Integer> previousSpokenHashMap = new HashMap<>(nrTurns);
 
         // put the starting numbers in a HashMap (use the turn as value)
         // except the last, this is the last spoken number
