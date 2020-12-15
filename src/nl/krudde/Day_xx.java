@@ -30,8 +30,8 @@ public class Day_xx extends Day {
         return String.valueOf(result);
     }
 
-    private List<Object> parseInput(List<String> inputRaw) {
-        List<Object> input = inputRaw.stream()
+    private List<Long> parseInput(List<String> inputRaw) {
+        List<Long> input = inputRaw.stream()
                 .map(Long::valueOf)
                 .collect(toList());
 
