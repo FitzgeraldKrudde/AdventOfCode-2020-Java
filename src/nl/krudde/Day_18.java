@@ -25,36 +25,34 @@ public class Day_18 extends Day {
     record Expression(String expression) {
         public long calculate() {
             String cleanedExpression = expression.replaceAll("\\s+", "");
-            return calculate(0, '+' + cleanedExpression);
+            return calculatePart1(cleanedExpression);
         }
 
-        private long calculate(long currentValue, String s) {
-            if (s.length() == 0) {
-                return currentValue;
+        public long calculatePart1(String s) {
+            if (s.indexOf('+') == -1 && s.indexOf('*') == -1) {
+                return Long.parseLong(s);
             }
 
-            if (s.startsWith("+(")) {
-                int positionMatchingParenthesis = findCloseParentheses(s);
-                String subExpression = s.substring(2, positionMatchingParenthesis);
-                String remainder = s.substring(positionMatchingParenthesis + 1);
-                return calculate(currentValue + calculate(0, "+" + subExpression), remainder);
-            }
-            if (s.startsWith("*(")) {
-                int positionMatchingParenthesis = findCloseParentheses(s);
-                String subExpression = s.substring(2, positionMatchingParenthesis);
-                String remainder = s.substring(positionMatchingParenthesis + 1);
-                return calculate(currentValue * calculate(0, "+" + subExpression), remainder);
-            }
-            if (s.charAt(0) == '+') {
-                String remainder = s.substring(2);
-                return calculate(currentValue + Character.getNumericValue(s.charAt(1)), remainder);
-            }
-            if (s.charAt(0) == '*') {
-                String remainder = s.substring(2);
-                return calculate(currentValue * Character.getNumericValue(s.charAt(1)), remainder);
+            // reduce parentheses
+            int pos = s.indexOf('(');
+            if (pos >= 0) {
+                int positionMatchingParenthesis = findCloseParentheses(s.substring(pos));
+                String subExpression = s.substring(pos + 1, pos + positionMatchingParenthesis);
+                long subExpressionValue = calculatePart1(subExpression);
+                return calculatePart1(s.substring(0, pos) + subExpressionValue + s.substring(pos + positionMatchingParenthesis + 1));
             }
 
-            throw new IllegalStateException("unmatched expression: " + s);
+            // go through operators left to right
+            String firstNumber = findSubstringWithNumber(s, 0, true);
+            String secondNumber = findSubstringWithNumber(s, firstNumber.length() + 1, true);
+            int remainderStartIndex = firstNumber.length() + 1 + secondNumber.length();
+            if (s.charAt(firstNumber.length()) == '+') {
+                long addition = Long.parseLong(firstNumber) + Long.parseLong(secondNumber);
+                return calculatePart1(addition + s.substring(remainderStartIndex));
+            } else {
+                long multiply = Long.parseLong(firstNumber) * Long.parseLong(secondNumber);
+                return calculatePart1(multiply + s.substring(remainderStartIndex));
+            }
         }
 
         private int findCloseParentheses(String s) {
@@ -80,10 +78,6 @@ public class Day_18 extends Day {
         }
 
         private long calculateAdvanced(String s) {
-            if (s.length() == 0) {
-                return 0;
-            }
-
             // reduce parentheses
             int pos = s.indexOf('(');
             if (pos >= 0) {
@@ -100,7 +94,6 @@ public class Day_18 extends Day {
                 String numberStringBefore = findSubstringWithNumber(s, pos - 1, false);
                 String numberStringAfter = findSubstringWithNumber(s, pos + 1, true);
                 long addition = Long.parseLong(numberStringBefore) + Long.parseLong(numberStringAfter);
-//                String remainderStringBefore=s.substring(0, pos - numberStringBefore.length() - 1)
                 return calculateAdvanced(s.substring(0, pos - numberStringBefore.length()) + addition + s.substring(pos + numberStringAfter.length() + 1));
             }
 
