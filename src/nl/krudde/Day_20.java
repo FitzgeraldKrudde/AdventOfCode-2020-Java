@@ -2,40 +2,58 @@ package nl.krudde;
 
 import lombok.AllArgsConstructor;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Map.Entry;
 
-import static java.util.AbstractMap.SimpleEntry;
-import static nl.krudde.Day_20.Corner.*;
+import static java.lang.Integer.parseInt;
+import static java.util.stream.Collectors.joining;
 import static nl.krudde.Day_20.Edge.*;
 
 public class Day_20 extends Day {
+    List<String> seaMonster = Arrays.asList(
+            "                  # ",
+            "#    ##    ##    ###",
+            " #  #  #  #  #  #   ");
+    int seaMonsterLength = seaMonster.get(0).length();
+    // calculate SeaMonster mask as bitwise mask to prevent running out on the left while shifting
+    int seaMonsterMask = Integer.parseInt("1".repeat(seaMonsterLength), 2);
+    // calculate SeaMonster sums ('#'->1)
+    int[] seaMonsterSums = seaMonster.stream()
+            .map(line -> line.replace(' ', '0').replace('#', '1'))
+            .map(s -> parseInt(s, 2))
+            .mapToInt(i -> i)
+            .toArray();
 
     @Override
     public String doPart1(List<String> inputRaw) {
         List<Tile> tiles = parseInput(inputRaw);
 
         int nrTilesPerEdge = (int) Math.sqrt(tiles.size());
+
         Map<Position, TileArrangement> placedTiles = solve(new HashMap<>(), tiles, nrTilesPerEdge);
 
-        long result = placedTiles.entrySet().stream()
-                .filter(es -> es.getKey().x == 0 && es.getKey().y == 0 ||
-                        es.getKey().x == 0 && es.getKey().y == nrTilesPerEdge - 1 ||
-                        es.getKey().x == nrTilesPerEdge - 1 && es.getKey().y == 0 ||
-                        es.getKey().x == nrTilesPerEdge - 1 && es.getKey().y == nrTilesPerEdge - 1)
-                .map(es -> es.getValue().tile.id)
-                .mapToLong(i -> i)
-                .reduce(1L, (l1, l2) -> l1 * l2);
+        long result = multiplyCornerIds(nrTilesPerEdge, placedTiles);
 
         return String.valueOf(result);
     }
 
     @Override
     public String doPart2(List<String> inputRaw) {
-        List<Tile> input = parseInput(inputRaw);
+        List<Tile> tiles = parseInput(inputRaw);
 
+        int nrTilesPerEdge = (int) Math.sqrt(tiles.size());
 
-        long result = 0;
+        Map<Position, TileArrangement> placedTiles = solve(new HashMap<>(), tiles, nrTilesPerEdge);
+
+        // assemble into 1 big image and strip all edges from all placed tiles
+        List<String> imageLines = stripEdgesAndCombineTiles(placedTiles, nrTilesPerEdge);
+
+        // try to find sea monsters while rotating and/or flipping
+        long nrOfSeaMonsters = findMaximumNrOfSeaMonstersForVariations(imageLines);
+
+        // calculate water roughness
+        long result = nrHashes(imageLines) - (nrOfSeaMonsters * nrHashes(seaMonster));
 
         return String.valueOf(result);
     }
@@ -52,170 +70,19 @@ public class Day_20 extends Day {
         int nrTiles = inputRaw.size() / (nrInputLinesPerTile);
         for (i = 0; i < nrTiles; i++) {
             String lineWithId = inputRaw.get(i * (nrInputLinesPerTile));
-            int id = Integer.parseInt(lineWithId.split("\\s+|:")[1]);
+            int id = parseInt(lineWithId.split("\\s+|:")[1]);
             List<String> tileLines = inputRaw.subList(i * nrInputLinesPerTile + 1, i * nrInputLinesPerTile + 1 + nrLinesPerTile);
 
-            // calculate all variations (rotating and flipping)
+            // calculate all tile variations (rotating and flipping)
             // calculate "edges" i.e. interpret '.' as 0 and '#' as 1 and convert this binary number to int
-            Map<Orientation, Map<Edge, Integer>> orientationEdges = calculateOrientationEdges(tileLines);
+            Map<Orientation, Tile> tileVariations = calculateOrientationsAndEdges(tileLines);
 
-            Tile tile = new Tile(id, tileLines, orientationEdges);
+            Tile tile = new Tile(id, tileLines, null, tileVariations);
             tiles.add(tile);
         }
 
         System.out.println("read #tiles = " + tiles.size());
         return tiles;
-    }
-
-    public List<String>rotate(List<String>lines){
-        
-    }
-
-    private Map<Orientation, Map<Edge, Integer>> calculateOrientationEdges(List<String> tileLines) {
-        Map<Orientation, Map<Edge, Integer>> orientations = new HashMap<>();
-
-        // to calculate all variations of rotation and flipping use strings for:
-        // - edges
-        // - ribs (edge without corner)
-        // - corner
-        // Use these when rotating/flipping to construct a complete string
-        Map<Edge, String> edges = edges(tileLines);
-        Map<Edge, String> ribs = ribs(edges);
-        Map<Edge, String> ribsReversed = reverseRibs(ribs);
-        Map<Corner, String> corners = corners(tileLines);
-
-        for (Orientation orientation : Orientation.values()) {
-            Map<Edge, Integer> mapEdges = new HashMap<>();
-            switch (orientation) {
-                case R0_NOFLIP:
-                    mapEdges.put(TOP, calculateEdgeToNumber(edges.get(TOP)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(edges.get(BOTTOM)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(edges.get(RIGHT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(edges.get(LEFT)));
-                    break;
-                case R0_FLIPH:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(TOP) + corners.get(TOP_LEFT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(BOTTOM) + corners.get(TOP_LEFT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(LEFT) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribs.get(RIGHT) + corners.get(BOTTOM_RIGHT)));
-                    break;
-                case R0_FLIPV:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribs.get(BOTTOM) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(TOP) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribsReversed.get(LEFT) + corners.get(TOP_LEFT)));
-                    break;
-
-                case R90_NOFLIP:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribsReversed.get(LEFT) + corners.get(TOP_LEFT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribsReversed.get(TOP) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribsReversed.get(BOTTOM) + corners.get(BOTTOM_RIGHT)));
-                    break;
-                case R90_FLIPH:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(LEFT) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribs.get(RIGHT) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribs.get(BOTTOM) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(TOP) + corners.get(TOP_RIGHT)));
-                    break;
-                case R90_FLIPV:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribs.get(LEFT) + corners.get(TOP_LEFT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(TOP) + corners.get(TOP_LEFT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(BOTTOM) + corners.get(BOTTOM_LEFT)));
-                    break;
-
-                case R180_NOFLIP:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(BOTTOM) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(TOP) + corners.get(TOP_LEFT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribsReversed.get(LEFT) + corners.get(TOP_LEFT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_RIGHT)));
-                    break;
-                case R180_FLIPH:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribs.get(BOTTOM) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(TOP) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(BOTTOM) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribsReversed.get(LEFT) + corners.get(TOP_LEFT)));
-                    break;
-                case R180_FLIPV:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(TOP) + corners.get(TOP_LEFT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(BOTTOM) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(LEFT) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribs.get(RIGHT) + corners.get(BOTTOM_RIGHT)));
-                    break;
-
-                case R270_NOFLIP:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribs.get(RIGHT) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(LEFT) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(RIGHT) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_LEFT)));
-                    break;
-                case R270_FLIPH:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_RIGHT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribsReversed.get(LEFT) + corners.get(TOP_LEFT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribsReversed.get(RIGHT) + corners.get(TOP_LEFT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(BOTTOM_RIGHT) + ribsReversed.get(BOTTOM) + corners.get(BOTTOM_LEFT)));
-                    break;
-                case R270_FLIPV:
-                    mapEdges.put(TOP, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(LEFT) + corners.get(BOTTOM_LEFT)));
-                    mapEdges.put(BOTTOM, calculateEdgeToNumber(corners.get(TOP_RIGHT) + ribs.get(RIGHT) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(RIGHT, calculateEdgeToNumber(corners.get(BOTTOM_LEFT) + ribs.get(BOTTOM) + corners.get(BOTTOM_RIGHT)));
-                    mapEdges.put(LEFT, calculateEdgeToNumber(corners.get(TOP_LEFT) + ribs.get(TOP) + corners.get(TOP_RIGHT)));
-                    break;
-            }
-            orientations.put(orientation, mapEdges);
-        }
-        // TODO distinct
-        return orientations;
-    }
-
-    private Map<Edge, String> reverseRibs(Map<Edge, String> ribs) {
-        return ribs.entrySet().stream()
-                .map(entry -> new SimpleEntry<>(entry.getKey(), new StringBuilder(entry.getValue()).reverse().toString()))
-                .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
-    }
-
-    private Map<Edge, String> ribs(Map<Edge, String> edges) {
-        return edges.entrySet().stream()
-                .map(entry -> new SimpleEntry<>(entry.getKey(), rib(entry.getValue())))
-                .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
-    }
-
-    private Map<Corner, String> corners(List<String> tileLines) {
-        HashMap<Corner, String> corners = new HashMap<>();
-
-        corners.put(TOP_LEFT, tileLines.get(0).substring(0, 1));
-        corners.put(Corner.TOP_RIGHT, tileLines.get(0).substring(tileLines.get(0).length() - 1));
-        corners.put(Corner.BOTTOM_LEFT, tileLines.get(tileLines.size() - 1).substring(0, 1));
-        corners.put(Corner.BOTTOM_RIGHT, tileLines.get(tileLines.size() - 1).substring(tileLines.get(tileLines.size() - 1).length() - 1));
-
-        return corners;
-    }
-
-    private String rib(String edge) {
-        return edge.substring(1, edge.length() - 2);
-    }
-
-    private Map<Edge, String> edges(List<String> tileLines) {
-        int nrLinesPerTile = tileLines.size() - 1;
-
-        HashMap<Edge, String> edges = new HashMap<>();
-        edges.put(TOP, tileLines.get(0));
-        edges.put(BOTTOM, tileLines.get(nrLinesPerTile));
-        edges.put(RIGHT, tileLines.stream()
-                .map(line -> line.charAt(nrLinesPerTile))
-                .map(Object::toString)
-                .collect(Collectors.joining()));
-        edges.put(LEFT, tileLines.stream()
-                .map(line -> line.charAt(0))
-                .map(Object::toString)
-                .collect(Collectors.joining()));
-
-        return edges;
-    }
-
-    private int calculateEdgeToNumber(String s) {
-        return Integer.parseInt(s.replace('.', '0').replace('#', '1'), 2);
     }
 
     public Map<Position, TileArrangement> solve(Map<Position, TileArrangement> placedTiles, List<Tile> unplacedTiles, int nrTilesPerEdge) {
@@ -229,13 +96,67 @@ public class Day_20 extends Day {
         // try all unplaced tiles in all rotations
         return unplacedTiles.stream()
                 .flatMap(tile -> Arrays.stream(Orientation.values())
+                        .filter(tile.tileVariations::containsKey)
                         .map(orientation -> new TileArrangement(tile, orientation)))
-//                .peek(ta -> System.out.println("position = " + nextPosition + " ta = " + ta))
                 .filter(tileArrangement -> fits(placedTiles, nextPosition, tileArrangement))
                 .map(tileArrangement -> tryTile(placedTiles, unplacedTiles, nrTilesPerEdge, nextPosition, tileArrangement))
                 .filter(Objects::nonNull)
+                // there are multiple solutions as the solution can be rotated, we just pick one
                 .findAny()
                 .orElse(null);
+    }
+
+    private Position determineNextPosition(Map<Position, TileArrangement> placedTiles, int nrTilesPerEdge) {
+        if (placedTiles.size() == 0) {
+            return new Position(0, 0);
+        }
+
+        // find maximum y
+        final int y = placedTiles.keySet().stream()
+                .max(Comparator.comparingInt(position -> position.y))
+                .map(position -> position.y)
+                .orElse(-1);
+        // find maximum x for this y row
+        int x = placedTiles.keySet().stream()
+                .filter(position -> position.y == y)
+                .max(Comparator.comparingInt(tile -> tile.x))
+                .map(tileArrangement -> tileArrangement.x)
+                .orElse(-1);
+
+        // check for last position in row
+        if (x == nrTilesPerEdge - 1) {
+            return new Position(0, y + 1);
+        } else {
+            return new Position(x + 1, y);
+        }
+    }
+
+    private boolean fits(Map<Position, TileArrangement> placedTiles, Position position, TileArrangement newTileArrangement) {
+        return position.neighbours().stream()
+                .filter(placedTiles::containsKey)
+                .map(pos -> new SimpleEntry<>(pos, placedTiles.get(pos)))
+                .allMatch(placedTileArrangementEntry -> edgeEqual(placedTileArrangementEntry, position, newTileArrangement));
+    }
+
+    private boolean edgeEqual(Entry<Position, TileArrangement> placedTileArrangementEntry, Position position, TileArrangement newTileArrangement) {
+        boolean result;
+
+        Tile placedTile = placedTileArrangementEntry.getValue().tile;
+        Orientation placedTileOrientation = placedTileArrangementEntry.getValue().orientation;
+        Position placedTilePosition = placedTileArrangementEntry.getKey();
+
+        Tile newTile = newTileArrangement.tile;
+        Orientation newTileOrientation = newTileArrangement.orientation;
+
+        if (placedTilePosition.x != position.x) {
+            // besides each other, existing tile on the left of the new tile
+            result = placedTile.tileVariations.get(placedTileOrientation).edges.get(RIGHT).equals(newTile.tileVariations.get(newTileOrientation).edges.get(LEFT));
+        } else {
+            // above each other, existing tile above of the new tile
+            result = placedTile.tileVariations.get(placedTileOrientation).edges.get(BOTTOM).equals(newTile.tileVariations.get(newTileOrientation).edges.get(TOP));
+        }
+
+        return result;
     }
 
     private Map<Position, TileArrangement> tryTile(Map<Position, TileArrangement> placedTiles, List<Tile> unplacedTiles, int nrTilesPerEdge, Position newPosition, TileArrangement tileArrangement) {
@@ -247,71 +168,229 @@ public class Day_20 extends Day {
         List<Tile> newUnplacedTiles = new ArrayList<>(unplacedTiles);
         newUnplacedTiles.remove(tileArrangement.tile());
 
+        // try to solve the remainder
         return solve(newPlacedTiles, newUnplacedTiles, nrTilesPerEdge);
     }
 
-    private boolean fits(Map<Position, TileArrangement> placedTiles, Position position, TileArrangement newTileArrangement) {
-        boolean result = placedTiles.entrySet().stream()
-                // TODO determine neighbours and check if in placedtiles iso get all and check if neighbour
-                .filter(positionTileArrangementEntry -> positionTileArrangementEntry.getKey().isNeighbour(position))
-                .allMatch(positionTileArrangementEntry -> edgeEqual(positionTileArrangementEntry, position, newTileArrangement));
-        return result;
+    private long multiplyCornerIds(int nrTilesPerEdge, Map<Position, TileArrangement> placedTiles) {
+        return placedTiles.entrySet().stream()
+                .filter(es -> es.getKey().x == 0 && es.getKey().y == 0 ||
+                        es.getKey().x == 0 && es.getKey().y == nrTilesPerEdge - 1 ||
+                        es.getKey().x == nrTilesPerEdge - 1 && es.getKey().y == 0 ||
+                        es.getKey().x == nrTilesPerEdge - 1 && es.getKey().y == nrTilesPerEdge - 1)
+                .map(es -> es.getValue().tile.id)
+                .mapToLong(i -> i)
+                .reduce(1L, (l1, l2) -> l1 * l2);
     }
 
-    private boolean edgeEqual(Map.Entry<Position, TileArrangement> placedTileArrangementEntry, Position position, TileArrangement newTileArrangement) {
-        int NREDGES = 4;
-
-        Tile placedTile = placedTileArrangementEntry.getValue().tile;
-        Orientation placedTileOrientation = placedTileArrangementEntry.getValue().orientation;
-        Position placedTilePosition = placedTileArrangementEntry.getKey();
-
-        Tile newTile = newTileArrangement.tile;
-        Orientation newTileOrientation = newTileArrangement.orientation;
-
-        if (placedTilePosition.x != position.x) {
-            // besides each other
-            if (placedTilePosition.x < position.x) {
-                // existing tile on the left of the new tile
-                System.out.println("placedTile.orientationEdges.get(placedTileOrientation).get(RIGHT) = " + placedTile.orientationEdges.get(placedTileOrientation).get(RIGHT));
-                System.out.println("newTile.orientationEdges.get(newTileOrientation).get(LEFT) = " + newTile.orientationEdges.get(newTileOrientation).get(LEFT));
-                boolean result = placedTile.orientationEdges.get(placedTileOrientation).get(RIGHT).equals(newTile.orientationEdges.get(newTileOrientation).get(LEFT));
-                return result;
-            } else {
-                // existing tile on the right of the new tile
-                return placedTile.orientationEdges.get(placedTileOrientation).get(LEFT).equals(newTile.orientationEdges.get(newTileOrientation).get(RIGHT));
+    public List<String> rotate90Clockwise(List<String> lines) {
+        List<String> rotated = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < lines.get(0).length(); x++) {
+            for (String line : lines) {
+                sb.append(line.charAt(x));
             }
-        } else {
-            // above each other
-            if (placedTilePosition.y < position.y) {
-                // existing tile above of the new tile
-                return placedTile.orientationEdges.get(placedTileOrientation).get(BOTTOM).equals(newTile.orientationEdges.get(newTileOrientation).get(TOP));
-            } else {
-                // existing tile below of the new tile
-                return placedTile.orientationEdges.get(placedTileOrientation).get(TOP).equals(newTile.orientationEdges.get(newTileOrientation).get(BOTTOM));
-            }
+            rotated.add(sb.reverse().toString());
+            sb.setLength(0);
         }
+
+        return rotated;
     }
 
-    private Position determineNextPosition(Map<Position, TileArrangement> placedTiles, int nrTilesPerEdge) {
-        int x = placedTiles.keySet().stream()
-                .max(Comparator.comparingInt(tile -> tile.x))
-                .map(tileArrangement -> tileArrangement.x)
-                .orElse(-1);
-        int y = placedTiles.keySet().stream()
-                .max(Comparator.comparingInt(position -> position.y))
-                .map(position -> position.y)
-                .orElse(-1);
-        // check last position in row
-        if (x == nrTilesPerEdge - 1) {
-            x = 0;
-            y++;
-        } else {
-            x++;
-            if (y == -1) {
-                y++;
+    public List<String> flipHorizontal(List<String> lines) {
+        List<String> flipped = new ArrayList<>();
+        for (String line : lines) {
+            flipped.add(new StringBuilder(line).reverse().toString());
+        }
+
+        return flipped;
+    }
+
+    public List<String> flipVertical(List<String> lines) {
+        List<String> flipped = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        for (int y = lines.size() - 1; y >= 0; y--) {
+            for (int x = 0; x < lines.get(0).length(); x++) {
+                sb.append(lines.get(y).charAt(x));
+            }
+            flipped.add(sb.toString());
+            sb.setLength(0);
+        }
+
+        return flipped;
+    }
+
+    private Map<Orientation, Tile> calculateOnlyOrientations(List<String> tileLines) {
+        return calculateOrientations(tileLines, false);
+    }
+
+    private Map<Orientation, Tile> calculateOrientationsAndEdges(List<String> tileLines) {
+        return calculateOrientations(tileLines, true);
+    }
+
+    private Map<Orientation, Tile> calculateOrientations(List<String> tileLines, boolean calculateEdges) {
+        Map<Orientation, Tile> orientations = new HashMap<>();
+
+        List<String> R90TileLines = rotate90Clockwise(tileLines);
+        List<String> R180TileLines = rotate90Clockwise(R90TileLines);
+        List<String> R270TileLines = rotate90Clockwise(R180TileLines);
+
+        for (Orientation orientation : Orientation.values()) {
+            List<String> lines = switch (orientation) {
+                case R0_NOFLIP -> tileLines;
+                case R0_FLIPH -> flipHorizontal(tileLines);
+                case R0_FLIPV -> flipVertical(tileLines);
+                case R90_NOFLIP -> R90TileLines;
+                case R90_FLIPH -> flipHorizontal(R90TileLines);
+                case R90_FLIPV -> flipVertical(R90TileLines);
+                case R180_NOFLIP -> R180TileLines;
+                case R180_FLIPH -> flipHorizontal(R180TileLines);
+                case R180_FLIPV -> flipVertical(R180TileLines);
+                case R270_NOFLIP -> R270TileLines;
+                case R270_FLIPH -> flipHorizontal(R270TileLines);
+                case R270_FLIPV -> flipVertical(R270TileLines);
+            };
+
+            // calculate the edges to a number ('#'->1)
+            Map<Edge, String> edges = edges(lines);
+            Map<Edge, Integer> mapCalculatedEdges = new HashMap<>();
+            if (calculateEdges) {
+                mapCalculatedEdges.put(TOP, calculateEdgeToNumber(edges.get(TOP)));
+                mapCalculatedEdges.put(BOTTOM, calculateEdgeToNumber(edges.get(BOTTOM)));
+                mapCalculatedEdges.put(RIGHT, calculateEdgeToNumber(edges.get(RIGHT)));
+                mapCalculatedEdges.put(LEFT, calculateEdgeToNumber(edges.get(LEFT)));
+            }
+
+            Tile tile = new Tile(0, lines, mapCalculatedEdges, null);
+
+            if (calculateEdges) {
+                // check for duplicates
+                if (orientations.values().stream()
+                        .noneMatch(t -> t.edges.equals(mapCalculatedEdges))) {
+                    orientations.put(orientation, tile);
+                }
+            } else {
+                orientations.put(orientation, tile);
             }
         }
-        return new Position(x, y);
+
+        return orientations;
+    }
+
+    private Map<Edge, String> edges(List<String> tileLines) {
+        int nrLinesPerTile = tileLines.size() - 1;
+
+        HashMap<Edge, String> edges = new HashMap<>();
+        edges.put(TOP, tileLines.get(0));
+        edges.put(BOTTOM, tileLines.get(nrLinesPerTile));
+        edges.put(RIGHT, tileLines.stream()
+                .map(line -> line.charAt(nrLinesPerTile))
+                .map(Object::toString)
+                .collect(joining()));
+        edges.put(LEFT, tileLines.stream()
+                .map(line -> line.charAt(0))
+                .map(Object::toString)
+                .collect(joining()));
+
+        return edges;
+    }
+
+    private int calculateEdgeToNumber(String s) {
+        return parseInt(s.replace('.', '0').replace('#', '1'), 2);
+    }
+
+    private List<String> stripEdgesAndCombineTiles(Map<Position, TileArrangement> placedTiles, int nrTilesPerEdge) {
+        int nrLinesPerTile = placedTiles.get(new Position(0, 0)).tile.lines.size();
+        int lineLength = placedTiles.get(new Position(0, 0)).tile.lines.get(0).length();
+        List<String> imageLines = new ArrayList<>();
+        for (int i = 0; i < nrTilesPerEdge * (nrLinesPerTile - 2); i++) {
+            imageLines.add("");
+        }
+
+        for (int y = 0; y < nrTilesPerEdge; y++) {
+            for (int x = 0; x < nrTilesPerEdge; x++) {
+                TileArrangement placedTileArrangement = placedTiles.get(new Position(x, y));
+                Tile placedTileVariation = placedTileArrangement.tile.tileVariations.get(placedTileArrangement.orientation);
+                // strip edges
+                for (int l = 0; l < nrLinesPerTile - 2; l++) {
+                    int imageLineIndex = y * (nrLinesPerTile - 2) + l;
+                    imageLines.set(imageLineIndex, imageLines.get(imageLineIndex) + placedTileVariation.lines.get(l + 1).substring(1, lineLength - 1));
+                }
+            }
+        }
+        return imageLines;
+    }
+
+    long findMaximumNrOfSeaMonstersForVariations(List<String> imageLines) {
+        return calculateOnlyOrientations(imageLines).values().stream()
+                .mapToLong(image -> findNrOfSeaMonsters(image.lines))
+                .max()
+                .orElseThrow(() -> new IllegalStateException("no solutions"));
+    }
+
+    int findNrOfSeaMonsters(List<String> imageLines) {
+        int nrFoundSeaMonsters = 0;
+
+        int imageLineLength = imageLines.get(0).length();
+        for (int l = 0; l < imageLines.size() - seaMonster.size() + 1; l++) {
+            // use "a sliding" window (with the size of the SeaMonster) over the image and compare this with the SeaMonster sums
+            int[] integers = new int[seaMonster.size()];
+            // calculate initial values
+            for (int i = 0; i < seaMonster.size(); i++) {
+                String part = imageLines.get(l + i).substring(0, seaMonsterLength);
+                integers[i] = Integer.parseInt(part.replace('.', '0').replace('#', '1'), 2);
+            }
+
+            for (int x = 0; x < imageLineLength - seaMonsterLength + 1; x++) {
+                // update our values when we move to the next position
+                // "remove" left and add right
+                if (x > 0) {
+                    for (int i = 0; i < seaMonster.size(); i++) {
+                        // left shift 1
+                        integers[i] <<= 1;
+                        // make sure we do not run away on the left
+                        integers[i] &= seaMonsterMask;
+                        // set least significant bit to 1 if we have a '#'
+                        if (imageLines.get(l + i).charAt(x + seaMonsterLength - 1) == '#') {
+                            integers[i] |= 1;
+                        }
+                    }
+                }
+
+                // check if we have a match
+                boolean possibleSeaMonster = true;
+                for (int i = 0; i < seaMonster.size() && possibleSeaMonster; i++) {
+                    if ((integers[i] & seaMonsterSums[i]) != seaMonsterSums[i]) {
+                        possibleSeaMonster = false;
+                    }
+                }
+                if (possibleSeaMonster) {
+                    nrFoundSeaMonsters++;
+                }
+            }
+        }
+
+        return nrFoundSeaMonsters;
+    }
+
+    private int nrHashes(List<String> lines) {
+        return (int) lines.stream()
+                .mapToLong(line -> line.chars().filter(c -> c == '#').count())
+                .sum();
+    }
+
+
+    @AllArgsConstructor
+    enum Orientation {
+        R0_NOFLIP, R0_FLIPH, R0_FLIPV,
+        R90_NOFLIP, R90_FLIPH, R90_FLIPV,
+        R180_NOFLIP, R180_FLIPH, R180_FLIPV,
+        R270_NOFLIP, R270_FLIPH, R270_FLIPV;
+
+    }
+
+    enum Edge {
+        TOP, RIGHT, BOTTOM, LEFT;
     }
 
     record Position(int x, int y) {
@@ -319,34 +398,16 @@ public class Day_20 extends Day {
             return (otherPosition.y == y && Math.abs(otherPosition.x - x) == 1) ||
                     (otherPosition.x == x && Math.abs(otherPosition.y - y) == 1);
         }
-    }
 
-    @AllArgsConstructor
-    enum Orientation {
-        R0_NOFLIP, R0_FLIPH, R0_FLIPV,
-        R90_NOFLIP, R90_FLIPH, R90_FLIPV,
-        R180_NOFLIP, R180_FLIPH, R180_FLIPV,
-        R270_NOFLIP, R270_FLIPH, R270_FLIPV
-    }
-
-    enum Edge {
-        TOP, RIGHT, BOTTOM, LEFT
-    }
-
-    enum Corner {
-        TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
-    }
-
-    record Tile(int id, List<String> lines, Map<Orientation, Map<Edge, Integer>> orientationEdges) {
-        public void print() {
-            System.out.println("id = " + id);
-            for (String line : lines) {
-                System.out.println(line);
-            }
-            for (Map.Entry<Orientation, Map<Edge, Integer>> entry : orientationEdges.entrySet()) {
-                System.out.println("entry = " + entry);
-            }
+        List<Position> neighbours() {
+            return Arrays.asList(new Position(x - 1, y),
+                    new Position(x + 1, y),
+                    new Position(x, y - 1),
+                    new Position(x, y + 1));
         }
+    }
+
+    record Tile(int id, List<String> lines, Map<Edge, Integer> edges, Map<Orientation, Tile> tileVariations) {
     }
 
     // @formatter:off
@@ -354,7 +415,8 @@ public class Day_20 extends Day {
 
     static public void main(String[] args) throws Exception {
         // get our class
-        final Class<?> clazz = new Object() {}.getClass().getEnclosingClass();
+        final Class<?> clazz = new Object() {
+        }.getClass().getEnclosingClass();
 
         // construct filename with input
         final String filename = clazz.getSimpleName().toLowerCase().replace("_0", "_") + ".txt";
