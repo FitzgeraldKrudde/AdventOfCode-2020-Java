@@ -27,6 +27,7 @@ public abstract class Day {
 
         System.out.println("\npart 1: " + result);
         System.out.println("duration (ms): " + Duration.between(start, finish).toMillis());
+        System.out.println();
 
         // part 2
         start = LocalTime.now();
