@@ -1,10 +1,8 @@
 package nl.krudde;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-
-import static java.util.stream.Collectors.toList;
 
 public class Day_13 extends Day {
 
@@ -12,8 +10,8 @@ public class Day_13 extends Day {
     public String doPart1(List<String> inputRaw) {
         BusPlanner busPlanner = parseInput(inputRaw);
 
-        BusDeparture earliestBusDeparture = busPlanner.busIds.stream()
-                .map(busId -> new BusDeparture(busId, calculateWaittime(busPlanner, busId)))
+        BusDeparture earliestBusDeparture = busPlanner.busSchedules.stream()
+                .map(busSchedule -> new BusDeparture(busSchedule.busId, busPlanner.calculateWaittime(busSchedule.busId)))
                 .min(Comparator.comparingLong(BusDeparture::waittime))
                 .orElseThrow(() -> new IllegalStateException("no solution"));
 
@@ -22,35 +20,59 @@ public class Day_13 extends Day {
         return String.valueOf(result);
     }
 
-    private long calculateWaittime(BusPlanner busPlanner, Long busId) {
-        return busPlanner.earliestDepartTime + (busId - (busPlanner.earliestDepartTime % busId)) - busPlanner.earliestDepartTime;
-    }
-
     @Override
     public String doPart2(List<String> inputRaw) {
-//        List<Long> input = parseInput(inputRaw);
+        BusPlanner busPlanner = parseInput(inputRaw);
 
-
-        long result = 0;
+        long result = busPlanner.earliestSubsequentDeparture();
 
         return String.valueOf(result);
     }
 
     private BusPlanner parseInput(List<String> inputRaw) {
-        long earliestDepart = Long.parseLong(inputRaw.get(0));
-        String[] listStringBusId = inputRaw.get(1).split(",");
-        List<Long> busIds = Arrays.stream(listStringBusId)
-                .filter(s -> !"x".equals(s))
-                .mapToLong(Long::parseLong)
-                .boxed()
-                .collect(toList());
+        long earliestDeparture = Long.parseLong(inputRaw.get(0));
+        List<BusSchedule> busSchedules = new ArrayList<>();
+        int offset = 0;
+        for (String s : inputRaw.get(1).split(",")) {
+            if (!"x".equals(s)) {
+                busSchedules.add(new BusSchedule(Long.parseLong(s), offset));
+            }
+            offset++;
+        }
+        return new BusPlanner(earliestDeparture, busSchedules);
+    }
 
-        return new BusPlanner(earliestDepart, busIds);
+    record BusPlanner(long earliestDepartureTime, List<BusSchedule> busSchedules) {
+        public long calculateWaittime(Long busId) {
+            return earliestDepartureTime + (busId - (earliestDepartureTime % busId)) - earliestDepartureTime;
+        }
+
+        public long earliestSubsequentDeparture() {
+            long start = 0;
+            long stepSize = 0;
+
+            for (BusSchedule busSchedule : busSchedules) {
+                if (stepSize == 0) {
+                    stepSize = busSchedule.busId;
+                } else {
+                    long multiply = 1;
+                    while ((start + multiply * stepSize + busSchedule.offset) % busSchedule.busId != 0) {
+                        multiply++;
+                    }
+                    // new starting point
+                    start += multiply * stepSize;
+                    // new stepsize, as all busids are primes we can multiply the current step with the current busid
+                    stepSize *= busSchedule.busId;
+                }
+            }
+
+            return start;
+        }
     }
 
     // @formatter:off
-    record BusPlanner(long earliestDepartTime,List<Long>busIds){}
     record BusDeparture(long busId, long waittime){}
+    record BusSchedule(long busId, long offset){}
 
     static public void main(String[] args) throws Exception {
         // get our class
