@@ -5,7 +5,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.toList;
-import static nl.krudde.Day_17.Cube.INACTIVE;
 
 public class Day_17 extends Day {
 
@@ -54,6 +53,27 @@ public class Day_17 extends Day {
                     .collect(toList())));
         }
 
+        private static EnergySource parseInput(List<String> inputRaw, int nrCycles, int dimensions) {
+            int length = inputRaw.size();
+
+            // create coordinates
+            List<int[]> listCoordinates = createCoordinates(-nrCycles, length + nrCycles, dimensions);
+
+            // create Cubes
+            List<Cube> cubes = listCoordinates.stream()
+                    .map(coordinates -> new Cube(new Point(coordinates), nrCycles))
+                    .collect(toList());
+
+            // set the state for the Cubes in the input
+            cubes.stream()
+                    .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate == 0)) // z and higher dimensions must all be 0
+                    .filter(cube -> cube.point.coordinates[0] >= 0 && cube.point.coordinates[0] < length) // x
+                    .filter(cube -> cube.point.coordinates[1] >= 0 && cube.point.coordinates[1] < length) // y
+                    .forEach(cube -> cube.states[0] = inputRaw.get(cube.point.coordinates[1]).charAt(cube.point.coordinates[0]));
+
+            return new EnergySource(cubes);
+        }
+
         /**
          * A recursive way of creating multidimensional coordinates within min/max.
          * Usually the straightforward algorithm uses nested for loops but this gets ugly for more (>3) dimensions
@@ -77,33 +97,12 @@ public class Day_17 extends Day {
             }
         }
 
-        private static EnergySource parseInput(List<String> inputRaw, int nrCycles, int dimensions) {
-            int length = inputRaw.size();
-
-            // create coordinates
-            List<int[]> listCoordinates = createCoordinates(-nrCycles, length + nrCycles, dimensions);
-
-            // create Cubes
-            List<Cube> cubes = listCoordinates.stream()
-                    .map(coordinates -> new Cube(new Point(coordinates), nrCycles, INACTIVE))
-                    .collect(toList());
-
-            // set the state for the Cubes in the input
-            cubes.stream()
-                    .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate == 0)) // z and higher dimensions must all be 0
-                    .filter(cube -> cube.point.coordinates[0] >= 0 && cube.point.coordinates[0] < length) // x
-                    .filter(cube -> cube.point.coordinates[1] >= 0 && cube.point.coordinates[1] < length) // y
-                    .forEach(cube -> cube.states[0] = inputRaw.get(cube.point.coordinates[1]).charAt(cube.point.coordinates[0]));
-
-            return new EnergySource(cubes);
-        }
-
         public void doCycle() {
             currentCycle++;
             cubes.stream()
                     // limit the cubes a bit as the area "expands" each cycle
-                    .filter(cube -> cube.point.coordinates[0]>=-currentCycle)
-                    .filter(cube -> cube.point.coordinates[1]>=-currentCycle)
+                    .filter(cube -> cube.point.coordinates[0] >= -currentCycle)
+                    .filter(cube -> cube.point.coordinates[1] >= -currentCycle)
                     .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate >= -currentCycle))
                     .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate <= currentCycle))
                     .forEach(cube -> cube.newState(currentCycle));
@@ -124,10 +123,10 @@ public class Day_17 extends Day {
         public List<Cube> neighbours;
         public char[] states;
 
-        public Cube(Point point, int nrCycles, char initialState) {
+        public Cube(Point point, int nrCycles) {
             this.point = point;
             states = new char[nrCycles + 1];
-            states[0] = initialState;
+            Arrays.fill(states, INACTIVE);
             neighbours = new ArrayList<>();
         }
 
