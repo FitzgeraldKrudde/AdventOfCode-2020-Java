@@ -17,7 +17,6 @@ class Day_17Test {
         List<Point> neighbours = point3D.neighbours();
         assertThat(neighbours.size()).isEqualTo(26);
         neighbours.forEach(neighbour -> assertThat(neighbour.isNeighbour(point3D)));
-//        neighbours.forEach(l -> System.out.println(Arrays.toString(l)));
 
         Point point4D = new Point(new int[]{1, 1, 1, 1});
         neighbours = point4D.neighbours();
@@ -28,7 +27,13 @@ class Day_17Test {
         neighbours = point5D.neighbours();
         assertThat(neighbours.size()).isEqualTo(242);
         neighbours.forEach(neighbour -> assertThat(neighbour.isNeighbour(point5D)));
+    }
 
+    @Test
+    void coordinates(){
+        List<int[]> coordinates = Day_17.EnergySource.createCoordinates(0, 20, 4);
+        System.out.println("coordinates.size() = " + coordinates.size());
+        coordinates.forEach(coordinate -> new Point(coordinate).neighbours());
     }
 
     @Test

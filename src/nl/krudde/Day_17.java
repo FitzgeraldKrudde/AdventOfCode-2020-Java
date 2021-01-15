@@ -1,19 +1,19 @@
 package nl.krudde;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
-import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.*;
 
 public class Day_17 extends Day {
 
     @Override
     public String doPart1(List<String> inputRaw) {
         int nrCycles = 6;
-        EnergySource energySource = EnergySource.parseInput(inputRaw, nrCycles, 3);
+        EnergySource energySource = EnergySource.parseInput(inputRaw, 3);
 
-        for (int cycle = 0; cycle < nrCycles; cycle++) {
+        for (int cycle = 1; cycle <= nrCycles; cycle++) {
             energySource.doCycle();
         }
 
@@ -25,9 +25,9 @@ public class Day_17 extends Day {
     @Override
     public String doPart2(List<String> inputRaw) {
         int nrCycles = 6;
-        EnergySource energySource = EnergySource.parseInput(inputRaw, nrCycles, 4);
+        EnergySource energySource = EnergySource.parseInput(inputRaw, 4);
 
-        for (int cycle = 0; cycle < nrCycles; cycle++) {
+        for (int cycle = 1; cycle <= nrCycles; cycle++) {
             energySource.doCycle();
         }
 
@@ -38,40 +38,39 @@ public class Day_17 extends Day {
 
 
     static class EnergySource {
-        private final List<Cube> cubes;
-        private int currentCycle = 0;
+        protected final static char ACTIVE = '#';
 
-        public EnergySource(List<Cube> cubes) {
-            this.cubes = cubes;
+        private final Map<Point, List<Point>> mapNeighbours = new HashMap<>();
+        private Set<Point> activeCubes;
 
-            // determine neighbours cubes, use a Map<Point, Cube>
-            Map<Point, Cube> cubeMap = cubes.stream()
-                    .collect(Collectors.toMap(cube -> cube.point, cube -> cube));
-            cubes.forEach(cube -> cube.neighbours.addAll(cube.point.neighbours().stream()
-                    .map(cubeMap::get)
-                    .filter(Objects::nonNull)
-                    .collect(toList())));
+        public EnergySource(Set<Point> activeCubes) {
+            this.activeCubes = activeCubes;
         }
 
-        private static EnergySource parseInput(List<String> inputRaw, int nrCycles, int dimensions) {
+        private static EnergySource parseInput(List<String> inputRaw, int dimensions) {
+            // determine active Cubes from the input
+            Set<Point> activeCubes = getActiveCubesFromInput(inputRaw, dimensions);
+
+            return new EnergySource(activeCubes);
+        }
+
+        private static Set<Point> getActiveCubesFromInput(List<String> inputRaw, int dimensions) {
             int length = inputRaw.size();
+            Set<Point> activeCubes = new HashSet<>();
+            IntStream.range(0, length).forEach(x -> IntStream.range(0, length)
+                    .filter(y -> inputRaw.get(y).charAt(x) == ACTIVE)
+                    .mapToObj(y -> createPoint(dimensions, x, y))
+                    .forEach(activeCubes::add)
+            );
+            return activeCubes;
+        }
 
-            // create coordinates
-            List<int[]> listCoordinates = createCoordinates(-nrCycles, length + nrCycles, dimensions);
-
-            // create Cubes
-            List<Cube> cubes = listCoordinates.stream()
-                    .map(coordinates -> new Cube(new Point(coordinates), nrCycles))
-                    .collect(toList());
-
-            // set the state for the Cubes in the input
-            cubes.stream()
-                    .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate == 0)) // z and higher dimensions must all be 0
-                    .filter(cube -> cube.point.coordinates[0] >= 0 && cube.point.coordinates[0] < length) // x
-                    .filter(cube -> cube.point.coordinates[1] >= 0 && cube.point.coordinates[1] < length) // y
-                    .forEach(cube -> cube.states[0] = inputRaw.get(cube.point.coordinates[1]).charAt(cube.point.coordinates[0]));
-
-            return new EnergySource(cubes);
+        private static Point createPoint(int dimensions, int x, int y) {
+            int[] coordinates = new int[dimensions];
+            Arrays.fill(coordinates, 0);
+            coordinates[0] = x;
+            coordinates[1] = y;
+            return new Point(coordinates);
         }
 
         /**
@@ -98,56 +97,38 @@ public class Day_17 extends Day {
         }
 
         public void doCycle() {
-            currentCycle++;
-            cubes.stream()
-                    // limit the cubes a bit as the area "expands" each cycle
-                    .filter(cube -> cube.point.coordinates[0] >= -currentCycle)
-                    .filter(cube -> cube.point.coordinates[1] >= -currentCycle)
-                    .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate >= -currentCycle))
-                    .filter(cube -> Arrays.stream(Arrays.copyOfRange(cube.point.coordinates, 2, cube.point.coordinates.length)).allMatch(coordinate -> coordinate <= currentCycle))
-                    .forEach(cube -> cube.newState(currentCycle));
+            // count all neighbours of active Cubes and filter on 2 or 3 occurrences
+            Map<Point, Long> cubesWith2Or3ActiveNeighbours = activeCubes.stream()
+                    .flatMap(cube -> getNeighbours(cube).stream())
+                    .collect(groupingBy(Function.identity(), counting()))
+                    .entrySet().stream()
+                    .filter(entry -> entry.getValue() == 2 || entry.getValue() == 3)
+                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            // add the cube if it was active
+            Set<Point> newActiveCubes = cubesWith2Or3ActiveNeighbours.keySet().stream()
+                    .filter(point -> activeCubes.contains(point))
+                    .collect(toSet());
+
+            // add the Cube if it was inactive and had 3 active neighbours
+            newActiveCubes.addAll(cubesWith2Or3ActiveNeighbours.entrySet().stream()
+                    .filter(entry -> !activeCubes.contains(entry.getKey()))
+                    .filter(entry -> entry.getValue() == 3)
+                    .map(Map.Entry::getKey)
+                    .collect(toSet())
+            );
+            activeCubes = newActiveCubes;
+        }
+
+        public List<Point> getNeighbours(Point point) {
+            if (!mapNeighbours.containsKey(point)) {
+                mapNeighbours.put(point, point.neighbours());
+            }
+            return mapNeighbours.get(point);
         }
 
         public long countActiveCubes() {
-            return cubes.stream()
-                    .filter(cube -> cube.isActive(currentCycle))
-                    .count();
-        }
-    }
-
-    static class Cube {
-        protected final static char ACTIVE = '#';
-        protected final static char INACTIVE = '.';
-
-        private final Point point;
-        public List<Cube> neighbours;
-        public char[] states;
-
-        public Cube(Point point, int nrCycles) {
-            this.point = point;
-            states = new char[nrCycles + 1];
-            Arrays.fill(states, INACTIVE);
-            neighbours = new ArrayList<>();
-        }
-
-        public void newState(int cycle) {
-            int activeNeighbours = activeNeighbours(cycle - 1);
-            if ((isActive(cycle - 1) && (activeNeighbours == 2 || activeNeighbours == 3) ||
-                    (!isActive(cycle - 1) && activeNeighbours == 3))) {
-                states[cycle] = ACTIVE;
-            } else {
-                states[cycle] = INACTIVE;
-            }
-        }
-
-        private int activeNeighbours(int cycle) {
-            return (int) neighbours.stream()
-                    .filter(cube -> cube.isActive(cycle))
-                    .count();
-        }
-
-        public boolean isActive(int cycle) {
-            return states[cycle] == ACTIVE;
+            return activeCubes.size();
         }
     }
 
@@ -198,10 +179,9 @@ public class Day_17 extends Day {
             List<Point> neighbours = new ArrayList<>(power3[dimensions] - 1);
 
             for (int i = 0; i < power3[dimensions]; i++) {
-
                 int[] neighbourCoordinates = new int[dimensions];
                 for (int dimension = 0; dimension < dimensions; dimension++) {
-                    neighbourCoordinates[dimension] = (coordinates[dimension] + ((i / power3[dimension]) % 3 - 1));
+                    neighbourCoordinates[dimension] = coordinates[dimension] + (i / power3[dimension]) % 3 - 1;
                 }
 
                 // skip the point itself
